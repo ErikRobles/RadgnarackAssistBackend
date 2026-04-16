@@ -3,6 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Execute remote deployment
+      - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -20,8 +21,25 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script_stop: true
           script: |
-            set -e
+            set -euo pipefail
             cd /var/www/RadgnarackAssistBackend
-            git pull origin main
+            echo "Current commit before deploy: $(git rev-parse --short HEAD)"
+            git fetch --all
+            git reset --hard origin/main
+            echo "Current commit after reset: $(git rev-parse --short HEAD)"
+            sudo bash -c 'cat > /etc/radgnarackassist.env << "EOF"
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}
+            PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}
+            PINECONE_NAMESPACE=${{ secrets.PINECONE_NAMESPACE }}
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            TELEGRAM_OWNER_CHAT_ID=${{ secrets.TELEGRAM_OWNER_CHAT_ID }}
+            APP_PORT=${{ secrets.APP_PORT }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            API_DOMAIN=${{ secrets.API_DOMAIN }}
+            DEFAULT_TOP_K=${{ secrets.DEFAULT_TOP_K }}
+            MIN_RELEVANCE_SCORE=${{ secrets.MIN_RELEVANCE_SCORE }}
+            EOF'
+            sudo chmod 600 /etc/radgnarackassist.env
             chmod +x deploy.sh
             ./deploy.sh
