@@ -15,11 +15,13 @@ allow_origins = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    # Production frontend
+    "https://radgnarack.rrspark.website",
 ]
 
-# Add production frontend domain if set
+# Add additional domains from environment if set
 frontend_url = os.getenv("FRONTEND_URL")
-if frontend_url:
+if frontend_url and frontend_url not in allow_origins:
     allow_origins.append(frontend_url)
 
 # Add API domain if different (for potential future use)

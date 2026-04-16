@@ -122,7 +122,6 @@ def _is_installation_question(question: str) -> bool:
         "setup", "set up",
         "assemble", "assembly",
         "attach", "attaching",
-        "fit", "fitting",
         "how do i put", "how to put",
         "how do i install", "how to install",
         "put on", "putting on",
