@@ -53,7 +53,7 @@ User=root
 Group=root
 WorkingDirectory=$PROJECT_DIR
 Environment="PATH=$VENV_DIR/bin"
-EnvironmentFile=$PROJECT_DIR/.env
+EnvironmentFile=/etc/radgnarackassist.env
 
 ExecStart=$VENV_DIR/bin/uvicorn app.main:app --host 0.0.0.0 --port $APP_PORT
 

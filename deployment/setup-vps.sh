@@ -63,7 +63,7 @@ User=root
 Group=root
 WorkingDirectory=/var/www/RadgnarackAssistBackend
 Environment="PATH=/var/www/RadgnarackAssistBackend/venv/bin"
-EnvironmentFile=/var/www/RadgnarackAssistBackend/.env
+EnvironmentFile=/etc/radgnarackassist.env
 
 ExecStart=/var/www/RadgnarackAssistBackend/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 
