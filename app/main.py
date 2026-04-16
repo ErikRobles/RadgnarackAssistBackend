@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.api.v1.chat import router as chat_router
 from app.api.v1.telegram import router as telegram_router
 from app.api.v1.escalation import router as escalation_router
@@ -38,6 +39,12 @@ app.include_router(chat_router)
 app.include_router(telegram_router)
 app.include_router(escalation_router)
 
+# Mount static files for manuals
+app.mount(
+    "/manuals",
+    StaticFiles(directory="ai/data/manuals"),
+    name="manuals"
+)
 
 @app.get("/")
 def root():

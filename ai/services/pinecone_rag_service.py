@@ -113,6 +113,23 @@ def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:
     return results
 
 
+def _is_installation_question(question: str) -> bool:
+    """Detect if question is about installation, mounting, or setup."""
+    q = question.lower()
+    keywords = [
+        "install", "installation",
+        "mount", "mounting",
+        "setup", "set up",
+        "assemble", "assembly",
+        "attach", "attaching",
+        "fit", "fitting",
+        "how do i put", "how to put",
+        "how do i install", "how to install",
+        "put on", "putting on",
+    ]
+    return any(kw in q for kw in keywords)
+
+
 def answer_question(question: str, top_k: int = TOP_K) -> RAGResult:
     retrieved = retrieve(question, top_k=top_k)
 
@@ -182,6 +199,11 @@ If the reference content is insufficient, say:
     )
 
     answer = (response.choices[0].message.content or "").strip()
+
+    # Append manual link for installation-related questions
+    if answer and _is_installation_question(question):
+        answer += "\n\n[Download the installation manual](/manuals/installation-manual.pdf)"
+
     if not answer:
         answer = "I'm not sure based on the available information."
 
