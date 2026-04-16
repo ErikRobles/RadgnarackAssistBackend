@@ -1,0 +1,108 @@
+[
+  {
+    "topic": "Hitch Receiver Requirements",
+    "chunk_type": "Compatibility Guidance",
+    "question_variants": [
+      "What kind of hitch do I need?",
+      "What size hitch is required for Radgnarack?",
+      "Can I use an adapter with a smaller hitch?",
+      "Is a 2 inch hitch required?"
+    ],
+    "chunk_content": "2\" hitches are required and an adapter is not recommended for Radgnarack systems. The attachment bars are specifically designed to connect directly to a standard 2\" hitch receiver without adapters for proper fit and security.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  },
+  {
+    "topic": "Direct Pickup Options",
+    "chunk_type": "FAQ",
+    "question_variants": [
+      "Can I pick up directly from RAD GNAR products?",
+      "Is local pickup available?",
+      "Can I pick up my order instead of shipping?",
+      "Where can I pick up my Radgnarack?"
+    ],
+    "chunk_content": "Yes, direct pickup is available from RAD GNAR products. Please contact us to schedule a time for pickup.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  },
+  {
+    "topic": "Bike Loading and Crank Arm Retention",
+    "chunk_type": "Loading Instructions",
+    "question_variants": [
+      "What kind of bikes can I load?",
+      "How are bikes secured to the rack?",
+      "What is the crank arm retention system?",
+      "Will my bike fit on Radgnarack?",
+      "How does the RGP-100 secure bikes?"
+    ],
+    "chunk_content": "With the RGP-100, bikes are secured through a crank arm retention system. The design allows multiple tire sizes and a wide variety of geometries. Engineers have designed this for the widest range of crank arm designs possible. The crank is the part of the bike that connects the pedal to the bike, and it is secured to the Radgnarack into a slot called the 'Crank Holder'. If you are concerned about fit, please feel free to reach out to the team.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  },
+  {
+    "topic": "Fat Bike Compatibility",
+    "chunk_type": "Compatibility Guidance",
+    "question_variants": [
+      "Can I use this rack with my fat bike?",
+      "Will fat tires fit on Radgnarack?",
+      "What is the maximum tire width supported?",
+      "Are fat bikes compatible with Radgnarack?"
+    ],
+    "chunk_content": "Yes, Radgnarack systems are compatible with fat bikes. The wheel tray design has slots intended to allow the user to secure skinny tires or fat tires up to 5 inches wide.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  },
+  {
+    "topic": "Industry and Pro Discounts",
+    "chunk_type": "FAQ",
+    "question_variants": [
+      "Do you offer industry discounts?",
+      "Are there pro discounts available?",
+      "Can I get a bulk discount?",
+      "Do you have trade pricing?"
+    ],
+    "chunk_content": "No, Radgnarack does not offer industry discounts. The company strives to keep overhead and prices as low as possible and focuses on quality of design and manufacturing.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  },
+  {
+    "topic": "Retail Sales Channel",
+    "chunk_type": "FAQ",
+    "question_variants": [
+      "Do you sell through retail locations?",
+      "Can I buy Radgnarack in stores?",
+      "Where can I purchase Radgnarack products?",
+      "Are there dealers or retailers?"
+    ],
+    "chunk_content": "No, Radgnarack does not sell through retail locations. Products are sold directly through the website because Radgnarack is a local small batch manufacturer.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  },
+  {
+    "topic": "Manufacturing Origin",
+    "chunk_type": "FAQ",
+    "question_variants": [
+      "Where are your racks manufactured?",
+      "Are Radgnarack products made in the USA?",
+      "Where do you build your bike racks?",
+      "What country are Radgnarack products from?"
+    ],
+    "chunk_content": "Radgnarack products are designed, manufactured, assembled, and shipped from the United States. Every unit is built in small batches using American steel and precision tooling.",
+    "source_doc": "RadgnarackDox.xlsx",
+    "source_sheet": "FAQ",
+    "source_url": "https://radgnarack.com",
+    "confidence": "canonical"
+  }
+]
