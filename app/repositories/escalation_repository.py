@@ -64,6 +64,21 @@ class EscalationRepository:
             return None
         return max(active, key=lambda esc: esc.created_at)
 
+    def get_pollable_by_conversation_id(self, conversation_id: str) -> Optional[Escalation]:
+        """Get the latest escalation that the frontend may still be polling."""
+        pollable = [
+            esc for esc in self._escalations.values()
+            if esc.conversation_id == conversation_id
+            and esc.status in (
+                EscalationStatus.PENDING,
+                EscalationStatus.SENT_TO_OWNER,
+                EscalationStatus.OWNER_REPLIED,
+            )
+        ]
+        if not pollable:
+            return None
+        return max(pollable, key=lambda esc: esc.created_at)
+
     def close_active_for_conversation(self, conversation_id: str) -> None:
         """Close active escalations for a conversation without changing reply mapping."""
         for esc in self._escalations.values():
