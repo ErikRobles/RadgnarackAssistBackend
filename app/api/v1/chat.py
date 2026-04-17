@@ -136,6 +136,33 @@ def _has_complete_fitment_data(fitment_context: dict[str, object]) -> bool:
     )
 
 
+def _get_missing_fitment_fields(fitment_context: dict[str, object]) -> list[str]:
+    """Return missing fitment fields in the order we want to clarify them."""
+    missing: list[str] = []
+    if not fitment_context.get("vehicle"):
+        missing.append("vehicle")
+    if int(fitment_context.get("bike_count") or 0) < 1:
+        missing.append("bike_count")
+    if not fitment_context.get("bike_type"):
+        missing.append("bike_type")
+    if fitment_context.get("hitch") != "2-inch":
+        missing.append("hitch")
+    return missing
+
+
+def _build_targeted_fitment_clarification(missing_fields: list[str]) -> str:
+    """Ask exactly one targeted fitment question for the most critical missing field."""
+    if "vehicle" in missing_fields:
+        return "Got it — thanks. What year, make, and model is your vehicle?"
+    if "bike_count" in missing_fields:
+        return "Got it — thanks.\n\nTo recommend the right setup, how many bikes are you planning to carry?"
+    if "bike_type" in missing_fields:
+        return "Got it — thanks. Are you carrying a standard bike or an e-bike?"
+    if "hitch" in missing_fields:
+        return "Got it — thanks. Do you know if your vehicle has a 2-inch hitch installed?"
+    return "Got it — thanks. Can you share one more detail about your vehicle, hitch, or bike setup?"
+
+
 def _build_fitment_recommendation(fitment_context: dict[str, object]) -> str:
     """Generate a known-product fitment recommendation from complete structured data."""
     vehicle_name = str(fitment_context.get("vehicle") or "your vehicle")
@@ -210,7 +237,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     fitment_context = ""
     if prior_state:
         fitment_context = " ".join(
-            part for part in [prior_state.fitment_context, prior_state.last_answer, question, enriched_question]
+            part for part in [prior_state.fitment_context, question, enriched_question]
             if part
         )
     normalized_fitment_context = _normalize_fitment_context(
@@ -219,11 +246,13 @@ def chat(request: ChatRequest) -> ChatResponse:
         previous_answer=prior_state.last_answer if prior_state else "",
     )
     is_complete_fitment = _has_complete_fitment_data(normalized_fitment_context)
+    missing_fitment_fields = _get_missing_fitment_fields(normalized_fitment_context)
     logger.info(
-        "chat fitment context conversation_id=%s fitment_context=%s is_complete_fitment=%s",
+        "chat fitment context conversation_id=%s fitment_context=%s is_complete_fitment=%s missing_fitment_fields=%s",
         conversation_id,
         normalized_fitment_context,
         is_complete_fitment,
+        missing_fitment_fields,
     )
 
     if (
@@ -271,20 +300,21 @@ def chat(request: ChatRequest) -> ChatResponse:
         and prior_intent == "fitment compatibility"
         and followup_detected
         and prior_state
-        and prior_state.clarification_attempts < 2
+        and not is_complete_fitment
     ):
-        result_dict["answer"] = _build_fitment_fallback_clarification(enriched_question)
+        result_dict["answer"] = _build_targeted_fitment_clarification(missing_fitment_fields)
         result_dict["used_context"] = False
         result_dict["escalation_needed"] = False
         result_dict["status"] = "clarification_needed"
         result_dict["sources"] = []
         logger.info(
-            "chat fitment fallback clarification conversation_id=%s used_followup_context=%s followup_detected=%s previous_turn_type=%s prior_intent=%s clarification_attempts=%s",
+            "chat targeted fitment clarification conversation_id=%s used_followup_context=%s followup_detected=%s previous_turn_type=%s prior_intent=%s missing_fitment_fields=%s clarification_attempts=%s",
             conversation_id,
             used_followup_context,
             followup_detected,
             previous_turn_type,
             prior_intent,
+            missing_fitment_fields,
             prior_state.clarification_attempts + 1,
         )
 

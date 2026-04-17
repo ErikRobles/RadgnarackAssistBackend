@@ -139,7 +139,7 @@ def is_follow_up_to_clarification(
         "yes", "yes i do", "yes, i do", "yep", "yeah", "correct",
         "it does", "yes it does", "yes, it does",
     }
-    if any(yes_word == msg for yes_word in yes_words) and "hitch" in (state.last_answer or "").lower():
+    if any(yes_word == msg for yes_word in yes_words):
         return True
 
     return _looks_like_structured_follow_up(message)
