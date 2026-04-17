@@ -1,0 +1,72 @@
+[
+  {
+    "Product Name": "HIGH MODULAR ATTACHMENT BAR - LONG",
+    "Chunk Type": "Product Specifications",
+    "Chunk Content": "Product: HIGH MODULAR ATTACHMENT BAR - LONG\nDocument Type: specification\nPage: 1\nWeight: 15 lbs\n\nDimensions (Length, Width, Height):\nLength: 42.5 in\n\nLoad Capacity: 500 lbs\n\nBike Load Capacity Front: 125 lbs\nBike Load Capacity Back: 125 lbs",
+    "product URL": "https://radgnarack.com",
+    "source_file": "ProductSpecifications.pdf",
+    "document_type": "specification",
+    "section_title": "Product Specifications",
+    "product_name": "HIGH MODULAR ATTACHMENT BAR - LONG",
+    "page_number": 1,
+    "topic": "high-modular-attachment-bar",
+    "chunk_index": 0,
+    "ingest_version": "1.0"
+  },
+  {
+    "Product Name": "HIGH MODULAR ATTACHMENT BAR - LONG",
+    "Chunk Type": "Product Specifications",
+    "Chunk Content": "Product: HIGH MODULAR ATTACHMENT BAR - LONG\nDocument Type: specification\nPage: 2\nWeight: 13.4 lbs\n\nDimensions (Length, Width, Height):\nLength: 42.5 in\nWidth: 2 in\nHeight: 2 in\n\nLoad Capacity: 500 lbs\n\nBike Load Capacity Front: 125 lbs\nBike Load Capacity Back: 125 lbs",
+    "product URL": "https://radgnarack.com",
+    "source_file": "ProductSpecifications.pdf",
+    "document_type": "specification",
+    "section_title": "Product Specifications",
+    "product_name": "HIGH MODULAR ATTACHMENT BAR - LONG",
+    "page_number": 2,
+    "topic": "high-modular-attachment-bar",
+    "chunk_index": 1,
+    "ingest_version": "1.0"
+  },
+  {
+    "Product Name": "HIGH MODULAR ATTACHMENT BAR - SHORT",
+    "Chunk Type": "Product Specifications",
+    "Chunk Content": "Product: HIGH MODULAR ATTACHMENT BAR - SHORT\nDocument Type: specification\nPage: 3\nWeight: 13.2 lbs\n\nDimensions (Length, Width, Height):\nLength: 42.5 in\nWidth: 2 in\n\nLoad Capacity: 500 lbs\n\nBike Load Capacity Back: 125 lbs",
+    "product URL": "https://radgnarack.com",
+    "source_file": "ProductSpecifications.pdf",
+    "document_type": "specification",
+    "section_title": "Product Specifications",
+    "product_name": "HIGH MODULAR ATTACHMENT BAR - SHORT",
+    "page_number": 3,
+    "topic": "high-modular-attachment-bar",
+    "chunk_index": 2,
+    "ingest_version": "1.0"
+  },
+  {
+    "Product Name": "LOW MODULAR ATTACHMENT BAR - SHORT",
+    "Chunk Type": "Product Specifications",
+    "Chunk Content": "Product: LOW MODULAR ATTACHMENT BAR - SHORT\nDocument Type: specification\nPage: 3\nWeight: 10.8 lbs\n\nDimensions (Length, Width, Height):\nLength: 28.5 in\nWidth: 2 in\nHeight: 2 in\n\nLoad Capacity: 500 lbs\n\nBike Load Capacity Back: 125 lbs",
+    "product URL": "https://radgnarack.com",
+    "source_file": "ProductSpecifications.pdf",
+    "document_type": "specification",
+    "section_title": "Product Specifications",
+    "product_name": "LOW MODULAR ATTACHMENT BAR - SHORT",
+    "page_number": 3,
+    "topic": "low-modular-attachment-bar",
+    "chunk_index": 3,
+    "ingest_version": "1.0"
+  },
+  {
+    "Product Name": "ALL BIKE RACK",
+    "Chunk Type": "Product Specifications",
+    "Chunk Content": "Product: ALL BIKE RACK\nDocument Type: specification\nPage: 4\nWeight: 26 lbs\n\nDimensions (Length, Width, Height):\nLength: 6.5 in\nWidth: 58 in\nHeight: 13 in\n\nLoad Capacity: 120 lbs",
+    "product URL": "https://radgnarack.com",
+    "source_file": "ProductSpecifications.pdf",
+    "document_type": "specification",
+    "section_title": "Product Specifications",
+    "product_name": "ALL BIKE RACK",
+    "page_number": 4,
+    "topic": "all-bike-rack",
+    "chunk_index": 4,
+    "ingest_version": "1.0"
+  }
+]
