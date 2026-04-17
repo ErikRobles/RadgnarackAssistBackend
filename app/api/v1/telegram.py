@@ -30,23 +30,23 @@ async def telegram_webhook(payload: dict):
 
     text = message.get("text", "").strip()
     chat_id = str(message.get("chat", {}).get("id", ""))
-    
+
     if not text:
         return {"ok": True}
 
-# PRIMARY PATH: Check if this is a reply to an escalation message
-  reply_to = message.get("reply_to_message")
-  if reply_to:
-    original_message_id = reply_to.get("message_id")
-    if original_message_id:
-      # Convert to int since Telegram webhook sends numbers as strings in JSON
-      # but we store them as integers for consistent lookup
-      original_message_id = int(original_message_id)
-      # Look up escalation by Telegram message_id
-      escalation = escalation_repo.get_by_telegram_message_id(
-        chat_id=chat_id,
-        message_id=original_message_id
-      )
+    # PRIMARY PATH: Check if this is a reply to an escalation message
+    reply_to = message.get("reply_to_message")
+    if reply_to:
+        original_message_id = reply_to.get("message_id")
+        if original_message_id:
+            # Convert to int since Telegram webhook sends numbers as strings in JSON
+            # but we store them as integers for consistent lookup
+            original_message_id = int(original_message_id)
+            # Look up escalation by Telegram message_id
+            escalation = escalation_repo.get_by_telegram_message_id(
+                chat_id=chat_id,
+                message_id=original_message_id
+            )
             if escalation:
                 updated = process_owner_reply(escalation.escalation_id, text)
                 if updated:
@@ -54,18 +54,18 @@ async def telegram_webhook(payload: dict):
                         "ok": True,
                         "message": f"Reply recorded for escalation {escalation.escalation_id}"
                     }
-            # Fallback: check if the original message text contains an escalation ID
-            original_text = reply_to.get("text", "")
-            import re
-            match = re.search(r"\*ID:\* `([^`]+)`", original_text)
-            if match:
-                escalation_id = match.group(1)
-                updated = process_owner_reply(escalation_id, text)
-                if updated:
-                    return {
-                        "ok": True,
-                        "message": f"Reply recorded for escalation {escalation_id}"
-                    }
+        # Fallback: check if the original message text contains an escalation ID
+        original_text = reply_to.get("text", "")
+        import re
+        match = re.search(r"\*ID:\* `([^`]+)`", original_text)
+        if match:
+            escalation_id = match.group(1)
+            updated = process_owner_reply(escalation_id, text)
+            if updated:
+                return {
+                    "ok": True,
+                    "message": f"Reply recorded for escalation {escalation_id}"
+                }
 
     # FALLBACK PATH: Check if this is a /reply command
     reply_data = telegram_adapter.parse_reply_command(text)
