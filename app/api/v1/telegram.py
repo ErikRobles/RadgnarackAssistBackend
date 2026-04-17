@@ -34,16 +34,19 @@ async def telegram_webhook(payload: dict):
     if not text:
         return {"ok": True}
 
-    # PRIMARY PATH: Check if this is a reply to an escalation message
-    reply_to = message.get("reply_to_message")
-    if reply_to:
-        original_message_id = reply_to.get("message_id")
-        if original_message_id:
-            # Look up escalation by Telegram message_id
-            escalation = escalation_repo.get_by_telegram_message_id(
-                chat_id=chat_id,
-                message_id=original_message_id
-            )
+# PRIMARY PATH: Check if this is a reply to an escalation message
+  reply_to = message.get("reply_to_message")
+  if reply_to:
+    original_message_id = reply_to.get("message_id")
+    if original_message_id:
+      # Convert to int since Telegram webhook sends numbers as strings in JSON
+      # but we store them as integers for consistent lookup
+      original_message_id = int(original_message_id)
+      # Look up escalation by Telegram message_id
+      escalation = escalation_repo.get_by_telegram_message_id(
+        chat_id=chat_id,
+        message_id=original_message_id
+      )
             if escalation:
                 updated = process_owner_reply(escalation.escalation_id, text)
                 if updated:
