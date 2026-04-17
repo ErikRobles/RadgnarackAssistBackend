@@ -41,10 +41,13 @@ app.include_router(chat_router)
 app.include_router(telegram_router)
 app.include_router(escalation_router)
 
-# Mount static files for manuals
+# Mount static files for manuals (use absolute path for uvicorn compatibility)
+import os as _os
+_manuals_dir = _os.path.join(_os.path.dirname(__file__), "..", "ai", "data", "manuals")
+_manuals_dir = _os.path.abspath(_manuals_dir)
 app.mount(
     "/manuals",
-    StaticFiles(directory="ai/data/manuals"),
+    StaticFiles(directory=_manuals_dir),
     name="manuals"
 )
 

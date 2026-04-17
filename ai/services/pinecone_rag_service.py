@@ -116,17 +116,12 @@ def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:
 def _is_installation_question(question: str) -> bool:
     """Detect if question is about installation, mounting, or setup."""
     q = question.lower()
-    keywords = [
-        "install", "installation",
-        "mount", "mounting",
-        "setup", "set up",
-        "assemble", "assembly",
-        "attach", "attaching",
-        "how do i put", "how to put",
-        "how do i install", "how to install",
-        "put on", "putting on",
-    ]
-    return any(kw in q for kw in keywords)
+    # Multi-word phrases must appear as substrings
+    # Single-word keywords must match whole words only
+    phrase_keywords = ["set up", "how do i put", "how to put", "how do i install", "how to install", "putting on"]
+    word_keywords = ["install", "installation", "mount", "mounting", "setup", "assemble", "assembly", "attach", "attaching", "put on"]
+    words = set(q.split())
+    return any(kw in q for kw in phrase_keywords) or any(kw in words for kw in word_keywords)
 
 
 def answer_question(question: str, top_k: int = TOP_K) -> RAGResult:
@@ -135,6 +130,17 @@ def answer_question(question: str, top_k: int = TOP_K) -> RAGResult:
     # STRICT RELEVANCE VALIDATION
     # 1. Top match must exceed strict threshold
     if not retrieved or retrieved[0].score < MIN_TOP_SCORE_THRESHOLD:
+        # Installation/setup questions should NEVER escalate - provide manual link instead
+        if _is_installation_question(question):
+            return RAGResult(
+                question=question,
+                answer="Here's how to set up the Radgnarack system. Download the installation manual: https://api.radgnarackassist.rrspark.website/manuals/installation-manual.pdf",
+                retrieved_chunks=retrieved,
+                sources=[],
+                used_context=False,
+                escalation_needed=False,
+                status="answered",
+            )
         return RAGResult(
             question=question,
             answer="I'm not sure based on the available information.",
@@ -150,6 +156,17 @@ def answer_question(question: str, top_k: int = TOP_K) -> RAGResult:
     sources = unique_sources(relevant_chunks)
 
     if not relevant_chunks:
+        # Installation/setup questions should NEVER escalate - provide manual link instead
+        if _is_installation_question(question):
+            return RAGResult(
+                question=question,
+                answer="Here's how to set up the Radgnarack system. Download the installation manual: https://api.radgnarackassist.rrspark.website/manuals/installation-manual.pdf",
+                retrieved_chunks=retrieved,
+                sources=[],
+                used_context=False,
+                escalation_needed=False,
+                status="answered",
+            )
         return RAGResult(
             question=question,
             answer="I'm not sure based on the available information.",
@@ -201,7 +218,7 @@ If the reference content is insufficient, say:
 
     # Append manual link for installation-related questions
     if answer and _is_installation_question(question):
-        answer += "\n\n[Download the installation manual](/manuals/installation-manual.pdf)"
+        answer += "\n\nDownload the installation manual: https://api.radgnarackassist.rrspark.website/manuals/installation-manual.pdf"
 
     if not answer:
         answer = "I'm not sure based on the available information."
