@@ -5,11 +5,13 @@ import re
 
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.escalation_service import create_escalation, should_escalate
+from app.repositories.escalation_repository import escalation_repo
 from app.services.conversation_context import (
     is_follow_up_to_clarification,
     build_enriched_fitment_query,
     set_conversation_state,
     get_conversation_state,
+    clear_conversation_state,
 )
 
 # Use Pinecone if API key is configured, otherwise fall back to local JSON
@@ -178,6 +180,89 @@ def _build_fitment_recommendation(fitment_context: dict[str, object]) -> str:
     )
 
 
+def _derive_escalation_reason(question: str, prior_intent: str | None) -> str:
+    q = question.lower()
+    if "warranty" in q or "liability" in q or "covered" in q or "void" in q:
+        return "Warranty / liability question"
+    if _looks_safety_critical(question):
+        return "Safety-sensitive question"
+    if prior_intent == "fitment compatibility" or _looks_fitment_question(question):
+        return "Fitment unresolved"
+    if "product" in q or "rack" in q:
+        return "Unsupported product question"
+    return "Insufficient context after retrieval"
+
+
+def _question_topic(question: str, prior_intent: str | None = None) -> str:
+    q = question.lower()
+    if prior_intent == "fitment compatibility" or _looks_fitment_question(question):
+        return "fitment"
+    if "warranty" in q or "liability" in q or "covered" in q or "void" in q:
+        return "warranty"
+    if any(term in q for term in ("damage", "damages", "scratch", "scratches", "dent", "break", "broke", "safe", "safety", "battery")):
+        return "safety_damage"
+    if any(term in q for term in ("color", "colour", "dimension", "dimensions", "weight", "height", "width", "length", "spec", "come in")):
+        return "product_info"
+    return "general"
+
+
+def _intent_to_topic(intent: str | None) -> str | None:
+    """Normalize stored conversation intent labels to topic labels."""
+    if not intent:
+        return None
+    if intent == "fitment compatibility":
+        return "fitment"
+    if intent in {"fitment", "warranty", "safety_damage", "product_info", "general"}:
+        return intent
+    return None
+
+
+def _is_related_to_escalated_topic(new_question: str, escalated_question: str, prior_intent: str | None = None) -> bool:
+    """Minimal deterministic topic check to keep unrelated questions fresh after escalation."""
+    new_topic = _question_topic(new_question, prior_intent=None)
+    old_topic = _question_topic(escalated_question, prior_intent=prior_intent)
+    if new_topic != "general" and old_topic != "general" and new_topic != old_topic:
+        return False
+
+    new_terms = set(re.findall(r"[a-z0-9-]{4,}", new_question.lower()))
+    old_terms = set(re.findall(r"[a-z0-9-]{4,}", escalated_question.lower()))
+    stop_terms = {"what", "about", "does", "with", "rack", "gnarack", "radgnarack", "come"}
+    overlap = (new_terms - stop_terms) & (old_terms - stop_terms)
+    return bool(overlap) or new_topic == old_topic
+
+
+def _build_escalation_summary(
+    reason: str,
+    original_question: str,
+    latest_user_message: str,
+    fitment_context: dict[str, object],
+) -> str:
+    if reason == "Fitment unresolved" and fitment_context:
+        parts = []
+        vehicle_year = fitment_context.get("vehicle_year")
+        vehicle = fitment_context.get("vehicle")
+        if vehicle:
+            parts.append(f"{vehicle_year} {vehicle}".strip() if vehicle_year else str(vehicle))
+        bike_count = fitment_context.get("bike_count")
+        bike_type = fitment_context.get("bike_type")
+        if bike_type:
+            bike_text = f"{bike_count} {bike_type}" if bike_count else str(bike_type)
+            parts.append(bike_text)
+        hitch = fitment_context.get("hitch")
+        if hitch:
+            parts.append(f"{hitch} hitch")
+        if parts:
+            return "Customer asked about fitment with " + ", ".join(parts) + "."
+
+    if reason == "Warranty / liability question":
+        return f"Customer asked a warranty or liability question: {latest_user_message}"
+
+    if reason == "Safety-sensitive question":
+        return f"Customer asked a safety-sensitive question: {latest_user_message}"
+
+    return f"Customer asked: {original_question}. Latest message: {latest_user_message}."
+
+
 @router.post("", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     original_question = request.question.strip()
@@ -193,6 +278,24 @@ def chat(request: ChatRequest) -> ChatResponse:
         original_question,
     )
 
+    active_escalation = (
+        escalation_repo.get_active_by_conversation_id(conversation_id)
+        if conversation_id
+        else None
+    )
+    if active_escalation and not _is_related_to_escalated_topic(
+        original_question,
+        active_escalation.user_question,
+    ):
+        escalation_repo.close_active_for_conversation(conversation_id)
+        logger.info(
+            "chat closed stale escalation for unrelated new question conversation_id=%s escalation_id=%s original_question=%r escalated_question=%r",
+            conversation_id,
+            active_escalation.escalation_id,
+            original_question,
+            active_escalation.user_question,
+        )
+
     # Check if this is a follow-up to a clarification
     enriched_question = question
     used_followup_context = False
@@ -200,11 +303,39 @@ def chat(request: ChatRequest) -> ChatResponse:
     prior_intent = None
     previous_turn_type = None
     prior_state = get_conversation_state(conversation_id) if conversation_id else None
+    current_topic = _question_topic(original_question, prior_intent=None)
+    previous_topic = None
+    is_topic_switch = False
     if prior_state:
         prior_intent = prior_state.last_intent if prior_state else None
         previous_turn_type = prior_state.last_turn_type
+        previous_topic = _intent_to_topic(prior_intent) or _question_topic(
+            prior_state.last_question,
+            prior_intent=None,
+        )
+        is_topic_switch = (
+            previous_topic is not None
+            and current_topic != "general"
+            and previous_topic != "general"
+            and current_topic != previous_topic
+        )
 
-    if not _looks_safety_critical(original_question):
+    if is_topic_switch:
+        if conversation_id:
+            clear_conversation_state(conversation_id)
+        prior_intent = current_topic
+        enriched_question = original_question
+        used_followup_context = False
+        followup_detected = False
+        logger.info(
+            "chat topic switch detected conversation_id=%s previous_topic=%s current_topic=%s original_question=%r",
+            conversation_id,
+            previous_topic,
+            current_topic,
+            original_question,
+        )
+
+    if not is_topic_switch and not _looks_safety_critical(original_question):
         followup_detected = is_follow_up_to_clarification(conversation_id, original_question)
 
     if followup_detected:
@@ -235,15 +366,17 @@ def chat(request: ChatRequest) -> ChatResponse:
     )
 
     fitment_context = ""
-    if prior_state:
+    if prior_state and not is_topic_switch:
         fitment_context = " ".join(
             part for part in [prior_state.fitment_context, question, enriched_question]
             if part
         )
+    else:
+        fitment_context = question
     normalized_fitment_context = _normalize_fitment_context(
         fitment_context,
         current_question=question,
-        previous_answer=prior_state.last_answer if prior_state else "",
+        previous_answer=prior_state.last_answer if prior_state and not is_topic_switch else "",
     )
     is_complete_fitment = _has_complete_fitment_data(normalized_fitment_context)
     missing_fitment_fields = _get_missing_fitment_fields(normalized_fitment_context)
@@ -336,7 +469,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         intent_for_state = (
             "fitment compatibility"
             if result_dict.get("status") == "clarification_needed"
-            else None
+            else current_topic
         )
         turn_type_for_state = (
             "clarification"
@@ -368,12 +501,33 @@ def chat(request: ChatRequest) -> ChatResponse:
 
     # Check if escalation is needed
     if should_escalate(result_dict.get("status"), result_dict.get("escalation_needed")):
+        current_state = get_conversation_state(conversation_id) if conversation_id else None
+        escalation_reason = _derive_escalation_reason(original_question, prior_intent)
+        original_for_escalation = (
+            current_state.original_question
+            if current_state and current_state.original_question
+            else original_question
+        )
+        transcript = current_state.recent_turns[-8:] if current_state else []
+        structured_context = normalized_fitment_context if normalized_fitment_context else None
+        summary = _build_escalation_summary(
+            reason=escalation_reason,
+            original_question=original_for_escalation,
+            latest_user_message=original_question,
+            fitment_context=normalized_fitment_context,
+        )
         # Create escalation asynchronously (don't block response)
         create_escalation(
             user_question=enriched_question if used_followup_context else original_question,
             conversation_id=request.conversation_id if hasattr(request, "conversation_id") else None,
             page_context=request.page_context if hasattr(request, "page_context") else None,
             source_url=request.source_url if hasattr(request, "source_url") else None,
+            original_question=original_for_escalation,
+            latest_user_message=original_question,
+            conversation_summary=summary,
+            structured_context=structured_context,
+            escalation_reason=escalation_reason,
+            recent_transcript=transcript,
         )
 
     return ChatResponse(**result_dict)

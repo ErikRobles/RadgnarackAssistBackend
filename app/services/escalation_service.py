@@ -14,6 +14,12 @@ def create_escalation(
     conversation_id: Optional[str] = None,
     page_context: Optional[str] = None,
     source_url: Optional[str] = None,
+    original_question: Optional[str] = None,
+    latest_user_message: Optional[str] = None,
+    conversation_summary: Optional[str] = None,
+    structured_context: Optional[dict] = None,
+    escalation_reason: Optional[str] = None,
+    recent_transcript: Optional[list[dict[str, str]]] = None,
 ) -> Optional[Escalation]:
     """
     Create an escalation record and notify owner.
@@ -34,6 +40,12 @@ def create_escalation(
         conversation_id=conversation_id,
         page_context=page_context,
         source_url=source_url,
+        original_question=original_question,
+        latest_user_message=latest_user_message,
+        conversation_summary=conversation_summary,
+        structured_context=structured_context,
+        escalation_reason=escalation_reason,
+        recent_transcript=recent_transcript,
     )
 
     # Update status and store Telegram message details

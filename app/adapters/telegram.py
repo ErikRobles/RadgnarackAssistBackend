@@ -28,6 +28,12 @@ class TelegramAdapter:
         conversation_id: Optional[str] = None,
         page_context: Optional[str] = None,
         source_url: Optional[str] = None,
+        original_question: Optional[str] = None,
+        latest_user_message: Optional[str] = None,
+        conversation_summary: Optional[str] = None,
+        structured_context: Optional[dict] = None,
+        escalation_reason: Optional[str] = None,
+        recent_transcript: Optional[list[dict[str, str]]] = None,
     ) -> Optional[dict]:
         """
         Send escalation notification to owner via Telegram.
@@ -38,16 +44,71 @@ class TelegramAdapter:
             print("Telegram not configured. Skipping notification.")
             return None
 
-        # Build the message
+        def clean(value: object, limit: int = 700) -> str:
+            text = str(value or "").strip()
+            text = text.replace("`", "'").replace("*", "")
+            return text[:limit] + "..." if len(text) > limit else text
+
+        # Build the message. Keep reply-to behavior unchanged; only enrich text.
         lines = [
-            "📋 *New Escalation*",
-            f"",
+            "📋 *New RadgnarackAssist escalation*",
+            "",
             f"*ID:* `{escalation_id}`",
-            f"*Question:* {user_question}",
         ]
 
         if conversation_id:
-            lines.append(f"*Conversation:* `{conversation_id}`")
+            lines.append(f"*Conversation ID:* `{conversation_id}`")
+
+        lines.extend([
+            "",
+            "*Original question:*",
+            clean(original_question or user_question),
+            "",
+            "*Latest user message:*",
+            clean(latest_user_message or user_question),
+        ])
+
+        if conversation_summary:
+            lines.extend([
+                "",
+                "*Conversation summary:*",
+                clean(conversation_summary, limit=500),
+            ])
+
+        if structured_context:
+            context_lines = []
+            labels = {
+                "vehicle": "Vehicle",
+                "vehicle_year": "Vehicle year",
+                "bike_type": "Bike type",
+                "bike_count": "Bike count",
+                "hitch": "Hitch",
+            }
+            for key, label in labels.items():
+                value = structured_context.get(key)
+                if value:
+                    context_lines.append(f"• {label}: {clean(value, limit=80)}")
+            if context_lines:
+                lines.extend([
+                    "",
+                    "*Collected context:*",
+                    *context_lines,
+                ])
+
+        if escalation_reason:
+            lines.extend([
+                "",
+                "*Escalation reason:*",
+                clean(escalation_reason, limit=200),
+            ])
+
+        if recent_transcript:
+            lines.extend(["", "*Recent transcript:*"])
+            for turn in recent_transcript[-8:]:
+                role = clean(turn.get("role", ""), limit=20) or "Turn"
+                content = clean(turn.get("content", ""), limit=300)
+                if content:
+                    lines.append(f"{role}: {content}")
 
         if page_context:
             # Truncate if too long
@@ -63,6 +124,8 @@ class TelegramAdapter:
         ])
 
         message_text = "\n".join(lines)
+        if len(message_text) > 3900:
+            message_text = message_text[:3900] + "\n..."
 
         # Send message via Telegram API
         url = f"{TELEGRAM_API_BASE}{self.bot_token}/sendMessage"

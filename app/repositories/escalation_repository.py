@@ -53,6 +53,26 @@ class EscalationRepository:
             return self._escalations.get(escalation_id)
         return None
 
+    def get_active_by_conversation_id(self, conversation_id: str) -> Optional[Escalation]:
+        """Get the latest active escalation for a conversation."""
+        active = [
+            esc for esc in self._escalations.values()
+            if esc.conversation_id == conversation_id
+            and esc.status in (EscalationStatus.PENDING, EscalationStatus.SENT_TO_OWNER)
+        ]
+        if not active:
+            return None
+        return max(active, key=lambda esc: esc.created_at)
+
+    def close_active_for_conversation(self, conversation_id: str) -> None:
+        """Close active escalations for a conversation without changing reply mapping."""
+        for esc in self._escalations.values():
+            if (
+                esc.conversation_id == conversation_id
+                and esc.status in (EscalationStatus.PENDING, EscalationStatus.SENT_TO_OWNER)
+            ):
+                esc.status = EscalationStatus.CLOSED
+
     def update_telegram_message_id(
         self,
         escalation_id: str,

@@ -16,12 +16,8 @@ def check_escalation_status(conversation_id: str):
     Check escalation status for a conversation.
     Returns owner reply if available, or indicates pending status.
     """
-    # Find escalation by conversation_id
-    escalation = None
-    for esc in escalation_repo._escalations.values():
-        if esc.conversation_id == conversation_id:
-            escalation = esc
-            break
+    # Find latest active escalation by conversation_id.
+    escalation = escalation_repo.get_active_by_conversation_id(conversation_id)
     
     if not escalation:
         raise HTTPException(

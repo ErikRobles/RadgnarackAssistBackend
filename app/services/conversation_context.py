@@ -12,6 +12,7 @@ import re
 class ConversationState:
     """Tracks the state of a conversation."""
     conversation_id: str
+    original_question: str
     last_question: str
     last_status: str
     last_answer: str
@@ -19,6 +20,7 @@ class ConversationState:
     last_turn_type: str | None = None
     clarification_attempts: int = 0
     fitment_context: str = ""
+    recent_turns: list[dict[str, str]] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
 
@@ -58,12 +60,21 @@ def set_conversation_state(
     fitment_context: str = "",
 ) -> None:
     """Store the state for a conversation."""
+    previous_state = _conversation_states.get(conversation_id)
     resolved_turn_type = turn_type
     if resolved_turn_type is None and _looks_like_clarification_prompt(answer, status):
         resolved_turn_type = "clarification"
 
+    recent_turns = list(previous_state.recent_turns) if previous_state else []
+    recent_turns.extend([
+        {"role": "User", "content": question},
+        {"role": "AI", "content": answer},
+    ])
+    recent_turns = recent_turns[-8:]
+
     _conversation_states[conversation_id] = ConversationState(
         conversation_id=conversation_id,
+        original_question=previous_state.original_question if previous_state else question,
         last_question=question,
         last_status=status,
         last_answer=answer,
@@ -71,6 +82,7 @@ def set_conversation_state(
         last_turn_type=resolved_turn_type,
         clarification_attempts=clarification_attempts,
         fitment_context=fitment_context,
+        recent_turns=recent_turns,
     )
 
 
