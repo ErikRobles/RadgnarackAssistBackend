@@ -95,9 +95,17 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
 
     if len(matches) > 1:
         second_score = _score(matches[1])
-        if top_score - second_score < APPROVED_QA_MARGIN:
-            logger.warning("RETRIEVAL REJECT reason=margin top_score=%s second_score=%s margin=%s required_margin=%s", top_score, second_score, top_score - second_score, APPROVED_QA_MARGIN)
-            return None
+        if second_score is not None:
+            margin = top_score - second_score
+            if margin < APPROVED_QA_MARGIN and top_score < 0.80:
+                logger.warning(
+                    "RETRIEVAL REJECT reason=margin top_score=%s second_score=%s margin=%s required_margin=%s",
+                    top_score,
+                    second_score,
+                    margin,
+                    APPROVED_QA_MARGIN,
+                )
+                return None
 
     if metadata.get("approval_state") != "owner_approved":
         logger.warning("RETRIEVAL REJECT reason=approval_state value=%r", metadata.get("approval_state"))
