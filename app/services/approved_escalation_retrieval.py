@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 APPROVED_QA_NAMESPACE = "approved_escalation_qa"
 EMBED_MODEL = "text-embedding-3-small"
-APPROVED_QA_THRESHOLD = 0.84
+APPROVED_QA_THRESHOLD = 0.70
 APPROVED_QA_MARGIN = 0.04
 
 

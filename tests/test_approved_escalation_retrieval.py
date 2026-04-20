@@ -57,7 +57,7 @@ class ApprovedEscalationRetrievalTests(unittest.TestCase):
         self.assertEqual(calls["top_k"], 2)
 
     def test_get_approved_answer_rejects_low_score(self):
-        calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.83), _match(0.70)])
+        calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.69), _match(0.60)])
         with env_patch, openai_patch, pinecone_patch:
             self.assertIsNone(retrieval.get_approved_answer("What color is it?", {"topic": "product_info"}))
 
