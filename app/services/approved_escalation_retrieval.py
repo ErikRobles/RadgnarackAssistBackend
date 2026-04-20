@@ -72,7 +72,7 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
         matches = list(getattr(results, "matches", []) or [])
     logger.warning("RETRIEVAL RESULTS count=%d", len(matches))
     if not matches:
-        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=no_matches")
         return None
 
     def _score(match) -> float:
@@ -90,23 +90,23 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
     metadata = _metadata(top)
     logger.warning("RETRIEVAL TOP score=%s metadata=%s", top_score, metadata.get("content_hash"))
     if top_score < APPROVED_QA_THRESHOLD:
-        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=threshold score=%s threshold=%s", top_score, APPROVED_QA_THRESHOLD)
         return None
 
     if len(matches) > 1:
         second_score = _score(matches[1])
         if top_score - second_score < APPROVED_QA_MARGIN:
-            logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
+            logger.warning("RETRIEVAL REJECT reason=margin top_score=%s second_score=%s margin=%s required_margin=%s", top_score, second_score, top_score - second_score, APPROVED_QA_MARGIN)
             return None
 
     if metadata.get("approval_state") != "owner_approved":
-        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=approval_state value=%r", metadata.get("approval_state"))
         return None
     if not metadata.get("answer_text"):
-        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=missing_answer_text")
         return None
     if not _metadata_matches(metadata, context or {}):
-        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=metadata top_metadata=%r context=%r", metadata, context or {})
         return None
 
     logger.warning("RETRIEVAL ACCEPT id=%s score=%s", metadata.get("content_hash"), top_score)
