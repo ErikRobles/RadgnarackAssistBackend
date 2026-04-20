@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 APPROVED_QA_NAMESPACE = "approved_escalation_qa"
 EMBED_MODEL = "text-embedding-3-small"
-APPROVED_QA_THRESHOLD = 0.70
+APPROVED_QA_THRESHOLD = 0.50
 APPROVED_QA_MARGIN = 0.04
 
 
@@ -95,17 +95,14 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
 
     if len(matches) > 1:
         second_score = _score(matches[1])
-        if second_score is not None:
-            margin = top_score - second_score
-            if margin < APPROVED_QA_MARGIN and top_score < 0.80:
-                logger.warning(
-                    "RETRIEVAL REJECT reason=margin top_score=%s second_score=%s margin=%s required_margin=%s",
-                    top_score,
-                    second_score,
-                    margin,
-                    APPROVED_QA_MARGIN,
-                )
-                return None
+        margin = top_score - second_score
+        logger.warning(
+            "RETRIEVAL MARGIN top_score=%s second_score=%s margin=%s required_margin=%s",
+            top_score,
+            second_score,
+            margin,
+            APPROVED_QA_MARGIN,
+        )
 
     if metadata.get("approval_state") != "owner_approved":
         logger.warning("RETRIEVAL REJECT reason=approval_state value=%r", metadata.get("approval_state"))

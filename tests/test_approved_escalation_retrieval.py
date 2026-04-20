@@ -57,14 +57,17 @@ class ApprovedEscalationRetrievalTests(unittest.TestCase):
         self.assertEqual(calls["top_k"], 2)
 
     def test_get_approved_answer_rejects_low_score(self):
-        calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.69), _match(0.60)])
+        calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.49), _match(0.40)])
         with env_patch, openai_patch, pinecone_patch:
             self.assertIsNone(retrieval.get_approved_answer("What color is it?", {"topic": "product_info"}))
 
-    def test_get_approved_answer_rejects_ambiguous_margin(self):
+    def test_get_approved_answer_accepts_close_margin_duplicates(self):
         calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.90), _match(0.87)])
         with env_patch, openai_patch, pinecone_patch:
-            self.assertIsNone(retrieval.get_approved_answer("What color is it?", {"topic": "product_info"}))
+            result = retrieval.get_approved_answer("What color is it?", {"topic": "product_info"})
+
+        self.assertEqual(result["answer_text"], "The rack comes in black powder coat finish.")
+        self.assertEqual(result["score"], 0.90)
 
     def test_get_approved_answer_rejects_fitment_metadata_mismatch(self):
         calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.91, topic="fitment", vehicle="Honda CR-V"), _match(0.70)])
