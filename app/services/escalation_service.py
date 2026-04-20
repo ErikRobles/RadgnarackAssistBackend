@@ -3,10 +3,14 @@ Escalation service for handling unanswered questions.
 Creates escalation records and sends notifications to owner.
 """
 from typing import Optional
+import logging
 
 from app.adapters.telegram import telegram_adapter
 from app.repositories.escalation_repository import escalation_repo
 from app.schemas.escalation import Escalation, EscalationStatus
+from app.services.approved_escalation_learning import process_learning
+
+logger = logging.getLogger(__name__)
 
 
 def create_escalation(
@@ -76,6 +80,11 @@ def process_owner_reply(escalation_id: str, reply_text: str) -> Optional[Escalat
         return None
 
     updated = escalation_repo.add_owner_reply(escalation_id, reply_text)
+    if updated:
+        try:
+            process_learning(updated)
+        except Exception:
+            logger.error("Learning failed", exc_info=True)
     return updated
 
 

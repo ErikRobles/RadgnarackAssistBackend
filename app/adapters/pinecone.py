@@ -24,7 +24,7 @@ def _get_client():
             
     return _index
 
-async def upsert_vectors(vectors: List[Dict[str, Any]]) -> None:
+async def upsert_vectors(vectors: List[Dict[str, Any]], namespace: Optional[str] = None) -> None:
     """
     Thin Pinecone upsert contract.
     Expects List[Dict] with: 'id', 'values', 'metadata'
@@ -35,7 +35,7 @@ async def upsert_vectors(vectors: List[Dict[str, Any]]) -> None:
         await anyio.to_thread.run_sync(
             lambda: index.upsert(
                 vectors=vectors,
-                namespace=settings.PINECONE_NAMESPACE
+                namespace=namespace or settings.PINECONE_NAMESPACE
             )
         )
     except (ConfigurationError, ServiceUnavailableError):
@@ -46,7 +46,8 @@ async def upsert_vectors(vectors: List[Dict[str, Any]]) -> None:
 async def query_index(
     vector: List[float], 
     filters: Optional[Dict[str, Any]] = None, 
-    top_k: int = 3
+    top_k: int = 3,
+    namespace: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Thin wrapper around Pinecone query for async safety."""
     
@@ -60,18 +61,26 @@ async def query_index(
                 filter=filters,
                 top_k=top_k,
                 include_metadata=True,
-                namespace=settings.PINECONE_NAMESPACE
+                namespace=namespace or settings.PINECONE_NAMESPACE
             )
         )
         
         # Normalize and return thin raw match dictionaries
+        raw_matches = raw_response.get("matches", []) if isinstance(raw_response, dict) else getattr(raw_response, "matches", [])
         matches = []
-        for match in raw_response.get("matches", []):
-            matches.append({
-                "id": match.get("id"),
-                "score": match.get("score"),
-                "metadata": match.get("metadata", {})
-            })
+        for match in raw_matches:
+            if isinstance(match, dict):
+                matches.append({
+                    "id": match.get("id"),
+                    "score": match.get("score"),
+                    "metadata": match.get("metadata", {})
+                })
+            else:
+                matches.append({
+                    "id": getattr(match, "id", None),
+                    "score": getattr(match, "score", None),
+                    "metadata": getattr(match, "metadata", {}) or {}
+                })
         return matches
         
     except (ConfigurationError, ServiceUnavailableError):

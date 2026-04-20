@@ -6,6 +6,7 @@ import re
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.escalation_service import create_escalation, should_escalate
 from app.repositories.escalation_repository import escalation_repo
+from app.services.approved_escalation_retrieval import get_approved_answer
 from app.services.conversation_context import (
     is_follow_up_to_clarification,
     build_enriched_fitment_query,
@@ -354,17 +355,6 @@ def chat(request: ChatRequest) -> ChatResponse:
                 enriched_question[:200],
             )
 
-    result = answer_question(enriched_question)
-    result_dict = result_to_dict(result)
-    logger.info(
-        "chat retrieval result conversation_id=%s original_question=%r enriched_query=%r followup_detected=%s result.status=%s",
-        conversation_id,
-        original_question,
-        enriched_question if used_followup_context else None,
-        followup_detected,
-        result_dict.get("status"),
-    )
-
     fitment_context = ""
     if prior_state and not is_topic_switch:
         fitment_context = " ".join(
@@ -386,6 +376,44 @@ def chat(request: ChatRequest) -> ChatResponse:
         normalized_fitment_context,
         is_complete_fitment,
         missing_fitment_fields,
+    )
+
+    # Approved Q&A check runs before existing RAG and escalation decisions.
+    approved_context = {
+        "topic": current_topic,
+        "fitment": normalized_fitment_context,
+    }
+    approved = get_approved_answer(
+        enriched_question if used_followup_context else original_question,
+        approved_context,
+    )
+    if approved:
+        logger.info(
+            "chat approved escalation answer used conversation_id=%s original_question=%r score=%s content_hash=%s",
+            conversation_id,
+            original_question,
+            approved.get("score"),
+            (approved.get("metadata") or {}).get("content_hash"),
+        )
+        return ChatResponse(
+            question=original_question,
+            answer=approved["answer_text"],
+            sources=[],
+            used_context=True,
+            escalation_needed=False,
+            status="answered",
+            retrieved_chunks=[],
+        )
+
+    result = answer_question(enriched_question)
+    result_dict = result_to_dict(result)
+    logger.info(
+        "chat retrieval result conversation_id=%s original_question=%r enriched_query=%r followup_detected=%s result.status=%s",
+        conversation_id,
+        original_question,
+        enriched_question if used_followup_context else None,
+        followup_detected,
+        result_dict.get("status"),
     )
 
     if (
