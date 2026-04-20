@@ -114,10 +114,44 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
         logger.warning("RETRIEVAL REJECT reason=metadata top_metadata=%r context=%r", metadata, context or {})
         return None
 
-    logger.warning("RETRIEVAL ACCEPT id=%s score=%s", metadata.get("content_hash"), top_score)
+    selected_score = top_score
+    selected_metadata = metadata
+    valid_candidates = [(top_score, metadata)]
+    for match in matches[1:]:
+        candidate_score = _score(match)
+        candidate_metadata = _metadata(match)
+        if candidate_score < APPROVED_QA_THRESHOLD:
+            continue
+        if candidate_metadata.get("approval_state") != "owner_approved":
+            continue
+        if not candidate_metadata.get("answer_text"):
+            continue
+        if not _metadata_matches(candidate_metadata, context or {}):
+            continue
+        valid_candidates.append((candidate_score, candidate_metadata))
+
+    if _clean((context or {}).get("topic")) == "product_info" and len(valid_candidates) > 1:
+        close_candidates = [
+            candidate
+            for candidate in valid_candidates
+            if top_score - candidate[0] <= 0.02
+        ]
+        selected_score, selected_metadata = max(
+            close_candidates,
+            key=lambda candidate: len(str(candidate[1].get("answer_text") or "")),
+        )
+        if selected_metadata is not metadata:
+            logger.warning(
+                "RETRIEVAL TIEBREAK selected_longer_answer id=%s score=%s answer_length=%s",
+                selected_metadata.get("content_hash"),
+                selected_score,
+                len(str(selected_metadata.get("answer_text") or "")),
+            )
+
+    logger.warning("RETRIEVAL ACCEPT id=%s score=%s", selected_metadata.get("content_hash"), selected_score)
     return {
-        "answer_text": metadata["answer_text"],
-        "question_text": metadata.get("question_text"),
-        "score": top_score,
-        "metadata": metadata,
+        "answer_text": selected_metadata["answer_text"],
+        "question_text": selected_metadata.get("question_text"),
+        "score": selected_score,
+        "metadata": selected_metadata,
     }

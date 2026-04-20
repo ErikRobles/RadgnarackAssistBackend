@@ -69,6 +69,21 @@ class ApprovedEscalationRetrievalTests(unittest.TestCase):
         self.assertEqual(result["answer_text"], "The rack comes in black powder coat finish.")
         self.assertEqual(result["score"], 0.90)
 
+    def test_get_approved_answer_prefers_longer_product_info_answer_when_scores_are_close(self):
+        short_answer = "Black."
+        longer_answer = "The racks come in black powder coat finish, with other colors available by request."
+        calls, env_patch, openai_patch, pinecone_patch = self._patch_query(
+            [
+                _match(0.90, answer_text=short_answer, content_hash="short"),
+                _match(0.89, answer_text=longer_answer, content_hash="long"),
+            ]
+        )
+        with env_patch, openai_patch, pinecone_patch:
+            result = retrieval.get_approved_answer("What color do these racks come in?", {"topic": "product_info"})
+
+        self.assertEqual(result["answer_text"], longer_answer)
+        self.assertEqual(result["score"], 0.89)
+
     def test_get_approved_answer_rejects_fitment_metadata_mismatch(self):
         calls, env_patch, openai_patch, pinecone_patch = self._patch_query([_match(0.91, topic="fitment", vehicle="Honda CR-V"), _match(0.70)])
         with env_patch, openai_patch, pinecone_patch:
