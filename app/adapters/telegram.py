@@ -1,6 +1,7 @@
 """
 Telegram adapter for sending escalation notifications and receiving owner replies.
 """
+import logging
 import os
 import re
 from typing import Optional
@@ -13,6 +14,8 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_OWNER_CHAT_ID = os.getenv("TELEGRAM_OWNER_CHAT_ID")
 TELEGRAM_API_BASE = "https://api.telegram.org/bot"
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramAdapter:
@@ -133,7 +136,6 @@ class TelegramAdapter:
         payload = {
             "chat_id": self.owner_chat_id,
             "text": message_text,
-            "parse_mode": "Markdown",
         }
 
         try:
@@ -150,9 +152,24 @@ class TelegramAdapter:
                     "telegram_chat_id": chat_id,
                 }
             else:
+                logger.error(
+                    "Telegram API returned error status=%s body=%s chat_id=%s parse_mode=%s",
+                    response.status_code,
+                    response.text,
+                    self.owner_chat_id,
+                    payload.get("parse_mode"),
+                )
                 print(f"Telegram API returned error: {result}")
                 return None
         except requests.RequestException as e:
+            response = getattr(e, "response", None)
+            logger.error(
+                "Failed to send Telegram notification status=%s body=%s chat_id=%s parse_mode=%s",
+                getattr(response, "status_code", None),
+                getattr(response, "text", None),
+                self.owner_chat_id,
+                payload.get("parse_mode"),
+            )
             print(f"Failed to send Telegram notification: {e}")
             return None
 
