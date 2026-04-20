@@ -296,10 +296,30 @@ def _process_learning_sync(escalation) -> None:
 
 
 def process_learning(escalation) -> None:
-    """Run best-effort learning synchronously inside the caller's try/except."""
-    logger.info("LEARNING START escalation_id=%s", escalation.escalation_id)
-    try:
-        _process_learning_sync(escalation)
-    except Exception:
-        logger.error("LEARNING FAILED escalation_id=%s", escalation.escalation_id, exc_info=True)
-        raise
+    logger.warning("LEARNING START escalation_id=%s", escalation.escalation_id)
+
+    owner_reply = getattr(escalation, "owner_reply", "")
+
+    if not should_learn(owner_reply):
+        logger.warning("LEARNING SKIPPED validation_failed escalation_id=%s", escalation.escalation_id)
+        return
+
+    payload = normalize_escalation(escalation)
+
+    logger.warning("LEARNING NORMALIZED id=%s topic=%s", payload["id"], payload["topic"])
+
+    if _ledger_has_hash(payload["content_hash"]):
+        logger.warning("LEARNING SKIPPED duplicate escalation_id=%s", escalation.escalation_id)
+        return
+
+    write_to_ledger(payload)
+
+    logger.warning("LEARNING LEDGER WRITE id=%s", payload["id"])
+
+    vector = embed_payload(payload)
+
+    logger.warning("LEARNING EMBEDDING SUCCESS id=%s", payload["id"])
+
+    upsert_to_pinecone(payload, vector)
+
+    logger.warning("LEARNING UPSERT SUCCESS id=%s namespace=approved_escalation_qa", payload["id"])
