@@ -121,6 +121,7 @@ class TelegramAdapter:
         lines.extend([
             "",
             "Reply to this message with your answer.",
+            f"If Telegram reply mode fails, send: /reply {escalation_id} Your answer here",
         ])
 
         message_text = "\n".join(lines)

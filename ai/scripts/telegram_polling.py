@@ -7,6 +7,7 @@ Run this in a separate terminal during development.
 import os
 import sys
 import time
+import re
 
 import requests
 
@@ -18,6 +19,27 @@ from app.repositories.escalation_repository import escalation_repo
 
 TELEGRAM_API_BASE = "https://api.telegram.org/bot"
 POLL_INTERVAL = 5  # seconds
+ESCALATION_ID_PATTERN = re.compile(r"\b(esc_[A-Za-z0-9_]+)\b", re.IGNORECASE)
+
+
+def extract_plain_text_escalation_reply(text: str) -> tuple[str, str] | None:
+    """Find an escalation id anywhere in plain text and return cleaned reply text."""
+    match = ESCALATION_ID_PATTERN.search(text or "")
+    if not match:
+        return None
+
+    escalation_id = match.group(1).lower()
+    prefix = text[:match.start()].strip()
+    suffix = text[match.end():]
+    if prefix.lower() in {"", "for", "re", "regarding"}:
+        reply_text = re.sub(r"^[\s:：,;\-–—]+", "", suffix).strip()
+    else:
+        reply_text = (text[:match.start()] + text[match.end():]).strip()
+        reply_text = re.sub(r"\s{2,}", " ", reply_text)
+
+    if not reply_text:
+        return None
+    return escalation_id, reply_text
 
 
 def poll_telegram_updates():
@@ -114,13 +136,36 @@ def poll_telegram_updates():
                 reply_data = telegram_adapter.parse_reply_command(text)
                 if reply_data:
                     escalation_id, reply_text = reply_data
-                    print(f"  Parsed /reply command: {escalation_id}")
+                    print(f"  /reply parsed: {escalation_id}")
+                    escalation = escalation_repo.get(escalation_id)
+                    if not escalation:
+                        print(f"  ✗ /reply escalation lookup failure: {escalation_id}")
+                        continue
+                    print(f"  ✓ /reply escalation lookup success: {escalation_id}")
                     updated = process_owner_reply(escalation_id, reply_text)
                     if updated:
-                        print(f"  ✓ Reply recorded for {escalation_id}")
+                        print(f"  ✓ /reply process_owner_reply success: {escalation_id}")
                         send_acknowledgment(bot_token, chat_id, escalation_id)
                     else:
-                        print(f"  ✗ Escalation {escalation_id} not found")
+                        print(f"  ✗ /reply process_owner_reply failure: {escalation_id}")
+                    continue
+
+                # Last fallback: plain text containing an escalation id.
+                plain_reply = extract_plain_text_escalation_reply(text)
+                if plain_reply:
+                    escalation_id, reply_text = plain_reply
+                    print(f"  Plain-text escalation id parsed: {escalation_id}")
+                    escalation = escalation_repo.get(escalation_id)
+                    if not escalation:
+                        print(f"  ✗ Plain-text escalation lookup failure: {escalation_id}")
+                        continue
+                    print(f"  ✓ Plain-text escalation lookup success: {escalation_id}")
+                    updated = process_owner_reply(escalation_id, reply_text)
+                    if updated:
+                        print(f"  ✓ Plain-text process_owner_reply success: {escalation_id}")
+                        send_acknowledgment(bot_token, chat_id, escalation_id)
+                    else:
+                        print(f"  ✗ Plain-text process_owner_reply failure: {escalation_id}")
 
             if updates:
                 print(f"Processed {len(updates)} updates")
