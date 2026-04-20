@@ -383,7 +383,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         "topic": current_topic,
         "fitment": normalized_fitment_context,
     }
-    logger.info("CHAT APPROVED CHECK query=%r topic=%s", original_question, current_topic)
+    logger.warning("CHAT APPROVED CHECK query=%r topic=%s", original_question, current_topic)
     approved = get_approved_answer(
         enriched_question if used_followup_context else original_question,
         approved_context,

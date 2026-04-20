@@ -47,7 +47,7 @@ def _metadata_matches(metadata: dict, context: dict) -> bool:
 
 def get_approved_answer(query: str, context: dict) -> Optional[dict]:
     """Return the single accepted approved Q&A match, or None."""
-    logger.info("RETRIEVAL START query=%r", query)
+    logger.warning("RETRIEVAL START query=%r", query)
     api_key = os.getenv("PINECONE_API_KEY")
     index_name = os.getenv("PINECONE_INDEX_NAME", "radgnarack-assist")
     if not api_key or api_key == "your-pinecone-api-key-here":
@@ -70,9 +70,9 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
         matches = list(results.get("matches", []))
     else:
         matches = list(getattr(results, "matches", []) or [])
-    logger.info("RETRIEVAL RESULTS count=%d", len(matches))
+    logger.warning("RETRIEVAL RESULTS count=%d", len(matches))
     if not matches:
-        logger.info("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
         return None
 
     def _score(match) -> float:
@@ -88,28 +88,28 @@ def get_approved_answer(query: str, context: dict) -> Optional[dict]:
     top = matches[0]
     top_score = _score(top)
     metadata = _metadata(top)
-    logger.info("RETRIEVAL TOP score=%s metadata=%s", top_score, metadata.get("content_hash"))
+    logger.warning("RETRIEVAL TOP score=%s metadata=%s", top_score, metadata.get("content_hash"))
     if top_score < APPROVED_QA_THRESHOLD:
-        logger.info("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
         return None
 
     if len(matches) > 1:
         second_score = _score(matches[1])
         if top_score - second_score < APPROVED_QA_MARGIN:
-            logger.info("RETRIEVAL REJECT reason=threshold/margin/metadata")
+            logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
             return None
 
     if metadata.get("approval_state") != "owner_approved":
-        logger.info("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
         return None
     if not metadata.get("answer_text"):
-        logger.info("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
         return None
     if not _metadata_matches(metadata, context or {}):
-        logger.info("RETRIEVAL REJECT reason=threshold/margin/metadata")
+        logger.warning("RETRIEVAL REJECT reason=threshold/margin/metadata")
         return None
 
-    logger.info("RETRIEVAL ACCEPT id=%s score=%s", metadata.get("content_hash"), top_score)
+    logger.warning("RETRIEVAL ACCEPT id=%s score=%s", metadata.get("content_hash"), top_score)
     return {
         "answer_text": metadata["answer_text"],
         "question_text": metadata.get("question_text"),
