@@ -207,6 +207,64 @@ class ConcurrencyProductionSafetyTests(unittest.TestCase):
         self.assertEqual(len(created_escalations), 1)
         self.assertEqual(created_escalations[0]["conversation_id"], "conv_user_b")
 
+    def test_g_approved_answer_persists_conversation_state(self):
+        approved_answer = {
+            "answer_text": "It comes in black.",
+            "score": 0.93,
+            "metadata": {"content_hash": "hash-color"},
+        }
+
+        with patch.object(chat_module, "get_approved_answer", return_value=approved_answer), \
+             patch.object(chat_module, "answer_question") as mock_answer_question:
+            response = chat_module.chat(
+                ChatRequest(
+                    question="What color does it come in?",
+                    conversation_id="conv_approved_state",
+                )
+            )
+
+        state = conversation_context.get_conversation_state("conv_approved_state")
+        self.assertIsNotNone(state)
+        self.assertEqual(response.answer, approved_answer["answer_text"])
+        self.assertEqual(state.last_question, "What color does it come in?")
+        self.assertEqual(state.last_answer, approved_answer["answer_text"])
+        self.assertEqual(state.last_status, "answered")
+        self.assertEqual(state.last_intent, "product_info")
+        mock_answer_question.assert_not_called()
+
+    def test_h_approved_retrieval_enriches_short_pronoun_followup(self):
+        conversation_context.set_conversation_state(
+            conversation_id="conv_pronoun_followup",
+            question="What color do the racks come in?",
+            status="answered",
+            answer="The racks come in black and white.",
+            intent="product_info",
+            turn_type=None,
+            clarification_attempts=0,
+            fitment_context="",
+        )
+        captured = {}
+
+        def fake_get_approved_answer(query, context):
+            captured["query"] = query
+            captured["context"] = context
+            return None
+
+        with patch.object(chat_module, "get_approved_answer", side_effect=fake_get_approved_answer), \
+             patch.object(chat_module, "answer_question", return_value=SimpleNamespace(status="answered", question="Do they come in blue?")), \
+             patch.object(chat_module, "result_to_dict", return_value=_fake_result("Do they come in blue?", answer="RAG answer")[1]):
+            response = chat_module.chat(
+                ChatRequest(
+                    question="Do they come in blue?",
+                    conversation_id="conv_pronoun_followup",
+                )
+            )
+
+        self.assertEqual(response.answer, "RAG answer")
+        self.assertNotEqual(captured["query"], "Do they come in blue?")
+        self.assertIn("the racks", captured["query"].lower())
+        self.assertIn("blue", captured["query"].lower())
+
     def test_step_3_load_simulation_20_concurrent_chat_requests_mixed_paths(self):
         created_escalations = []
         created_lock = threading.Lock()

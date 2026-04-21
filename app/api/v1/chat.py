@@ -218,6 +218,81 @@ def _intent_to_topic(intent: str | None) -> str | None:
     return None
 
 
+def _looks_context_dependent_followup(question: str) -> bool:
+    """Detect short pronoun-led follow-ups that need prior subject enrichment."""
+    q = (question or "").strip().lower()
+    if not q:
+        return False
+
+    compact = re.sub(r"[?!.,]+", "", q)
+    words = re.findall(r"[a-z0-9-]+", compact)
+    if not words or len(words) > 8:
+        return False
+
+    pronouns = {"it", "they", "them", "those", "these"}
+    if words[0] in {"what", "how"} and len(words) > 1 and words[1] == "about":
+        return True
+
+    return any(word in pronouns for word in words)
+
+
+def _subject_from_prior_state(prior_state, prior_topic: str | None) -> str | None:
+    """Infer a stable product subject from prior turns when available."""
+    if not prior_state or prior_topic != "product_info":
+        return None
+
+    prior_text = " ".join(
+        part
+        for part in [
+            getattr(prior_state, "original_question", ""),
+            getattr(prior_state, "last_question", ""),
+            getattr(prior_state, "last_answer", ""),
+        ]
+        if part
+    ).lower()
+    if "racks" in prior_text:
+        return "the racks"
+    if "rack" in prior_text:
+        return "the rack"
+    return None
+
+
+def _build_enriched_approved_followup_query(
+    question: str,
+    prior_state,
+    prior_topic: str | None,
+) -> str | None:
+    """Enrich short context-dependent follow-ups with the prior subject for retrieval."""
+    if not _looks_context_dependent_followup(question):
+        return None
+
+    subject = _subject_from_prior_state(prior_state, prior_topic)
+    if not subject:
+        return None
+
+    stripped_question = (question or "").strip()
+    lowered = stripped_question.lower()
+    if lowered.startswith("what about "):
+        remainder = stripped_question[11:].strip()
+        return f"Product info about {subject}. What about {remainder}?"
+
+    pronoun_patterns = [
+        (r"(?i)\bthey\b", subject),
+        (r"(?i)\bthem\b", subject),
+        (r"(?i)\bthose\b", subject),
+        (r"(?i)\bthese\b", subject),
+        (r"(?i)\bit\b", subject),
+    ]
+    rewritten = stripped_question
+    for pattern, replacement in pronoun_patterns:
+        candidate = re.sub(pattern, replacement, rewritten, count=1)
+        if candidate != rewritten:
+            rewritten = candidate
+            break
+
+    return f"Product info about {subject}. {rewritten}"
+
+
 def _is_related_to_escalated_topic(new_question: str, escalated_question: str, prior_intent: str | None = None) -> bool:
     """Minimal deterministic topic check to keep unrelated questions fresh after escalation."""
     new_topic = _question_topic(new_question, prior_intent=None)
@@ -383,9 +458,26 @@ def chat(request: ChatRequest) -> ChatResponse:
         "topic": current_topic,
         "fitment": normalized_fitment_context,
     }
+    approved_query = enriched_question if used_followup_context else original_question
+    approved_followup_query = None
+    if prior_state and not is_topic_switch and not _looks_safety_critical(original_question):
+        approved_followup_query = _build_enriched_approved_followup_query(
+            original_question,
+            prior_state,
+            previous_topic,
+        )
+        if approved_followup_query:
+            approved_query = approved_followup_query
+            logger.info(
+                "chat approved follow-up enrichment applied conversation_id=%s original_question=%r previous_topic=%s enriched_query=%r",
+                conversation_id,
+                original_question,
+                previous_topic,
+                approved_followup_query,
+            )
     logger.warning("CHAT APPROVED CHECK query=%r topic=%s", original_question, current_topic)
     approved = get_approved_answer(
-        enriched_question if used_followup_context else original_question,
+        approved_query,
         approved_context,
     )
     if approved:
@@ -396,6 +488,24 @@ def chat(request: ChatRequest) -> ChatResponse:
             approved.get("score"),
             (approved.get("metadata") or {}).get("content_hash"),
         )
+        if conversation_id:
+            approved_status = "answered"
+            previous_fitment_context = prior_state.fitment_context if prior_state else ""
+            fitment_context_for_state = (
+                " ".join(part for part in [previous_fitment_context, question] if part).strip()
+                if current_topic == "fitment" or prior_intent == "fitment compatibility"
+                else ""
+            )
+            set_conversation_state(
+                conversation_id=conversation_id,
+                question=original_question,
+                status=approved_status,
+                answer=approved["answer_text"],
+                intent=current_topic,
+                turn_type=None,
+                clarification_attempts=0,
+                fitment_context=fitment_context_for_state,
+            )
         return ChatResponse(
             question=original_question,
             answer=approved["answer_text"],
