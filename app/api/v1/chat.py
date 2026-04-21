@@ -232,8 +232,43 @@ def _looks_context_dependent_followup(question: str) -> bool:
     pronouns = {"it", "they", "them", "those", "these"}
     if words[0] in {"what", "how"} and len(words) > 1 and words[1] == "about":
         return True
+    if _extract_fragment_value(question):
+        return True
 
     return any(word in pronouns for word in words)
+
+
+def _extract_fragment_value(question: str) -> str | None:
+    """Extract ultra-short fragment values like colors from 1-3 word follow-ups."""
+    q = (question or "").strip().lower()
+    compact = re.sub(r"[?!.,]+", "", q)
+    words = re.findall(r"[a-z0-9-]+", compact)
+    if not words or len(words) > 3:
+        return None
+
+    if words[0] == "in" and len(words) in {2, 3}:
+        return " ".join(words[1:])
+    if len(words) <= 2:
+        return " ".join(words)
+    return None
+
+
+def _prior_state_establishes_color_subject(prior_state, prior_topic: str | None) -> bool:
+    """Require clear prior color/product context before expanding fragments."""
+    if not prior_state or prior_topic != "product_info":
+        return False
+
+    prior_text = " ".join(
+        part
+        for part in [
+            getattr(prior_state, "original_question", ""),
+            getattr(prior_state, "last_question", ""),
+            getattr(prior_state, "last_answer", ""),
+        ]
+        if part
+    ).lower()
+    color_markers = ("color", "colour", "come in")
+    return any(marker in prior_text for marker in color_markers)
 
 
 def _subject_from_prior_state(prior_state, prior_topic: str | None) -> str | None:
@@ -272,8 +307,14 @@ def _build_enriched_approved_followup_query(
 
     stripped_question = (question or "").strip()
     lowered = stripped_question.lower()
+    fragment_value = _extract_fragment_value(stripped_question)
+    if fragment_value and _prior_state_establishes_color_subject(prior_state, prior_topic):
+        return f"Do {subject} come in {fragment_value}?"
+
     if lowered.startswith("what about "):
         remainder = stripped_question[11:].strip()
+        if _prior_state_establishes_color_subject(prior_state, prior_topic):
+            return f"Do {subject} come in {remainder.rstrip('?')}?"
         return f"Product info about {subject}. What about {remainder}?"
 
     pronoun_patterns = [

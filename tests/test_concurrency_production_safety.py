@@ -265,6 +265,78 @@ class ConcurrencyProductionSafetyTests(unittest.TestCase):
         self.assertIn("the racks", captured["query"].lower())
         self.assertIn("blue", captured["query"].lower())
 
+    def test_i_approved_retrieval_enriches_in_green_fragment(self):
+        conversation_context.set_conversation_state(
+            conversation_id="conv_fragment_green",
+            question="What color do the racks come in?",
+            status="answered",
+            answer="The racks come in black and white.",
+            intent="product_info",
+            turn_type=None,
+            clarification_attempts=0,
+            fitment_context="",
+        )
+        captured = {}
+
+        def fake_get_approved_answer(query, context):
+            captured["query"] = query
+            return None
+
+        with patch.object(chat_module, "get_approved_answer", side_effect=fake_get_approved_answer), \
+             patch.object(chat_module, "answer_question", return_value=SimpleNamespace(status="answered", question="In Green?")), \
+             patch.object(chat_module, "result_to_dict", return_value=_fake_result("In Green?", answer="RAG answer")[1]):
+            chat_module.chat(ChatRequest(question="In Green?", conversation_id="conv_fragment_green"))
+
+        self.assertEqual(captured["query"], "Do the racks come in green?")
+
+    def test_j_approved_retrieval_enriches_blue_fragment(self):
+        conversation_context.set_conversation_state(
+            conversation_id="conv_fragment_blue",
+            question="What color do the racks come in?",
+            status="answered",
+            answer="The racks come in black and white.",
+            intent="product_info",
+            turn_type=None,
+            clarification_attempts=0,
+            fitment_context="",
+        )
+        captured = {}
+
+        def fake_get_approved_answer(query, context):
+            captured["query"] = query
+            return None
+
+        with patch.object(chat_module, "get_approved_answer", side_effect=fake_get_approved_answer), \
+             patch.object(chat_module, "answer_question", return_value=SimpleNamespace(status="answered", question="Blue?")), \
+             patch.object(chat_module, "result_to_dict", return_value=_fake_result("Blue?", answer="RAG answer")[1]):
+            chat_module.chat(ChatRequest(question="Blue?", conversation_id="conv_fragment_blue"))
+
+        self.assertEqual(captured["query"], "Do the racks come in blue?")
+
+    def test_k_approved_retrieval_enriches_what_about_green_fragment(self):
+        conversation_context.set_conversation_state(
+            conversation_id="conv_fragment_what_about",
+            question="What color do the racks come in?",
+            status="answered",
+            answer="The racks come in black and white.",
+            intent="product_info",
+            turn_type=None,
+            clarification_attempts=0,
+            fitment_context="",
+        )
+        captured = {}
+
+        def fake_get_approved_answer(query, context):
+            captured["query"] = query
+            return None
+
+        with patch.object(chat_module, "get_approved_answer", side_effect=fake_get_approved_answer), \
+             patch.object(chat_module, "answer_question", return_value=SimpleNamespace(status="answered", question="What about green?")), \
+             patch.object(chat_module, "result_to_dict", return_value=_fake_result("What about green?", answer="RAG answer")[1]):
+            chat_module.chat(ChatRequest(question="What about green?", conversation_id="conv_fragment_what_about"))
+
+        self.assertEqual(captured["query"], "Do the racks come in green?")
+
     def test_step_3_load_simulation_20_concurrent_chat_requests_mixed_paths(self):
         created_escalations = []
         created_lock = threading.Lock()
