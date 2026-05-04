@@ -51,6 +51,14 @@ app.mount(
     name="manuals"
 )
 
+_widget_dir = _os.path.join(_os.path.dirname(__file__), "..", "widget")
+_widget_dir = _os.path.abspath(_widget_dir)
+app.mount(
+    "/widget",
+    StaticFiles(directory=_widget_dir),
+    name="widget"
+)
+
 @app.get("/")
 def root():
     return {"status": "ok", "service": "RadgnarackAssist Backend"}
